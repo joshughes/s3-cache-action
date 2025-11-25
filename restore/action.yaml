@@ -33,9 +33,13 @@ inputs:
     description: AWS session token to access the bucket
     required: false
   enable-gzip:
-    description: Enable gzip compression for cache files (defaults to false)
+    description: Enable gzip compression for cache files (defaults to false, deprecated in favor of compression-method)
     required: false
     default: "false"
+  compression-method:
+    description: Compression method to use (none, gzip, zstd). Defaults to none. zstd provides the best performance.
+    required: false
+    default: "none"
 outputs:
   cache-hit:
     description: A string "true" or "false" indicating whether the cache hit with the key.

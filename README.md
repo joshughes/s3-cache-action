@@ -21,7 +21,7 @@ For examples of caching configurations in each language, see [actions/cache: Imp
     aws-region: ${{ vars.S3_CACHE_AWS_REGION }}
     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    enable-gzip: true # Optional: enable gzip compression (default: false)
+    compression-method: zstd # Optional: none (default), gzip, or zstd
 ```
 
 Attach `s3:GetObject`, `s3:PutObject` on the bucket objects, and `s3:ListBucket` on the bucket to the IAM role of the AWS credentials.
@@ -53,15 +53,47 @@ Refer to [action.yaml](https://github.com/itchyny/s3-cache-action/blob/main/acti
   You can include the same `key` in `restore-keys` for prefix matching.
 - The action does not separate caches based on the operating system, especially for Windows.
   You can include `${{ runner.os }}` in `key` and `restore-keys`.
-- The action supports optional gzip compression (disabled by default for faster tar archiving), while `actions/cache` uses Zstandard if possible.
-  The action does not use any external commands, while `actions/cache` relies on `tar`, `gzip`, and `zstd` commands.
+- The action supports multiple compression methods: none (default), gzip, or zstd (recommended for best performance).
+  `actions/cache` uses Zstandard by default.
+
+## Compression Methods
+
+This action supports three compression methods via the `compression-method` input:
+
+- **`none`** (default): No compression. Fastest for already-compressed artifacts or same-region high-bandwidth scenarios.
+- **`gzip`**: Standard gzip compression. Good compatibility with single-threaded compression.
+- **`zstd`** (recommended): Zstandard compression with multi-threading. Provides the best balance of compression ratio and speed.
+
+### Using zstd Compression
+
+Zstd provides significant performance improvements:
+
+- 3-5x faster compression than gzip
+- Multi-threaded compression using all available CPU cores
+- Better compression ratios than gzip
+- Used by GitHub Actions cache natively
+
+```yaml
+- uses: itchyny/s3-cache-action@v1
+  with:
+    path: node_modules
+    key: node-${{ hashFiles('package-lock.json') }}
+    bucket-name: ${{ vars.S3_CACHE_BUCKET_NAME }}
+    compression-method: zstd
+```
+
+**Note**: The `zstd` command must be available in the runner environment. It's pre-installed on GitHub-hosted runners.
+
+The legacy `enable-gzip` input is still supported for backwards compatibility but is deprecated in favor of `compression-method`.
 
 ## Performance Optimizations
 
 - **Multipart Uploads**: The action uses optimized multipart uploads to S3 with 8MB part size and 10 concurrent uploads.
   This configuration is designed to saturate high-bandwidth links when running in AWS (same region as the S3 bucket).
-- **Optional Compression**: Gzip compression is optional (via `enable-gzip` parameter) to balance transfer time vs compression overhead.
-  For same-region AWS deployments with high bandwidth, uncompressed uploads may be faster for already-compressed artifacts.
+- **Flexible Compression**: Choose from multiple compression methods to optimize for your use case:
+  - `none`: Fastest for high-bandwidth scenarios or pre-compressed artifacts
+  - `gzip`: Standard compression with good compatibility
+  - `zstd`: Recommended - multi-threaded compression for best performance
 
 ## npm package
 
@@ -87,10 +119,16 @@ const s3Client: s3.S3Client = new s3.S3Client({
 });
 
 async function main() {
-  // Optional: enable gzip compression (default: false)
-  const enableGzip = false;
+  // Compression method: "none" (default), "gzip", or "zstd"
+  const compressionMethod: cache.CompressionMethod = "zstd";
 
-  const saved = await cache.saveCache(["*.txt"], "test-key", bucketName, s3Client, enableGzip);
+  const saved = await cache.saveCache(
+    ["*.txt"],
+    "test-key",
+    bucketName,
+    s3Client,
+    compressionMethod,
+  );
   if (!saved) {
     console.log("Cache already exists, skipped saving.");
   }
@@ -101,7 +139,7 @@ async function main() {
     ["test-"],
     bucketName,
     s3Client,
-    enableGzip,
+    compressionMethod,
   );
   if (restoredKey) {
     console.log(`Cache restored with key ${restoredKey}.`);
@@ -113,7 +151,7 @@ async function main() {
     ["test-"],
     bucketName,
     s3Client,
-    enableGzip,
+    compressionMethod,
   );
   if (foundKey) {
     console.log(`Cache found with key ${foundKey}.`);

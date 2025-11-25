@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as s3 from "@aws-sdk/client-s3";
 
+import type { CompressionMethod } from "./cache";
 import { Env, Inputs } from "./constants";
 
 export function splitInput(str: string): string[] {
@@ -8,6 +9,29 @@ export function splitInput(str: string): string[] {
     .split("\n")
     .map((s) => s.trim())
     .filter((s) => s !== "" && !s.startsWith("#"));
+}
+
+export function getCompressionMethod(): CompressionMethod {
+  // Check new compression-method input first
+  const compressionMethod = core.getInput(Inputs.CompressionMethod).toLowerCase();
+  if (
+    compressionMethod === "zstd" ||
+    compressionMethod === "gzip" ||
+    compressionMethod === "none"
+  ) {
+    return compressionMethod as CompressionMethod;
+  }
+
+  // Fall back to legacy enable-gzip for backwards compatibility
+  const enableGzip = core.getInput(Inputs.EnableGzip) === "true";
+  if (enableGzip) {
+    core.warning(
+      "The 'enable-gzip' input is deprecated. Please use 'compression-method: gzip' instead.",
+    );
+    return "gzip";
+  }
+
+  return "none";
 }
 
 export function newS3Client(): s3.S3Client {

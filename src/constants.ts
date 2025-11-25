@@ -10,6 +10,7 @@ export enum Inputs {
   AWSSecretAccessKey = "aws-secret-access-key",
   AWSSessionToken = "aws-session-token",
   EnableGzip = "enable-gzip",
+  CompressionMethod = "compression-method",
 }
 
 export enum Env {

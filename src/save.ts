@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 
 import { saveCache } from "./cache";
 import { Inputs, State } from "./constants";
-import { newS3Client, splitInput } from "./utils";
+import { getCompressionMethod, newS3Client, splitInput } from "./utils";
 
 export async function save() {
   // Get the inputs.
@@ -11,11 +11,11 @@ export async function save() {
   );
   const key = core.getState(State.CacheKey) || core.getInput(Inputs.Key, { required: true });
   const bucketName = core.getInput(Inputs.BucketName, { required: true });
-  const enableGzip = core.getInput(Inputs.EnableGzip) === "true";
+  const compressionMethod = getCompressionMethod();
   core.debug(`${Inputs.Path}: [${path.join(", ")}]`);
   core.debug(`${Inputs.Key}: ${key}`);
   core.debug(`${Inputs.BucketName}: ${bucketName}`);
-  core.debug(`${Inputs.EnableGzip}: ${enableGzip}`);
+  core.debug(`Compression method: ${compressionMethod}`);
 
   // If the cache has already been restored, don't save it again.
   if (core.getState(State.CacheHit) === "true") {
@@ -24,7 +24,7 @@ export async function save() {
   }
 
   // Save the cache to S3.
-  await saveCache(path, key, bucketName, newS3Client(), enableGzip);
+  await saveCache(path, key, bucketName, newS3Client(), compressionMethod);
 }
 
 if (require.main === module) {
