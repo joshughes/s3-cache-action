@@ -32,10 +32,13 @@ inputs:
   aws-session-token:
     description: AWS session token to access the bucket
     required: false
+  enable-gzip:
+    description: Enable gzip compression for cache files (defaults to false)
+    required: false
+    default: "false"
 outputs:
   cache-hit:
-    description:
-      A string "true" or "false" indicating whether the cache hit with the key.
+    description: A string "true" or "false" indicating whether the cache hit with the key.
       If the cache is restored with one of the restore-keys, the value is "false".
       If the cache is not restored, the value is "".
 runs:

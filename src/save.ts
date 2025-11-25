@@ -11,9 +11,11 @@ export async function save() {
   );
   const key = core.getState(State.CacheKey) || core.getInput(Inputs.Key, { required: true });
   const bucketName = core.getInput(Inputs.BucketName, { required: true });
+  const enableGzip = core.getInput(Inputs.EnableGzip) === "true";
   core.debug(`${Inputs.Path}: [${path.join(", ")}]`);
   core.debug(`${Inputs.Key}: ${key}`);
   core.debug(`${Inputs.BucketName}: ${bucketName}`);
+  core.debug(`${Inputs.EnableGzip}: ${enableGzip}`);
 
   // If the cache has already been restored, don't save it again.
   if (core.getState(State.CacheHit) === "true") {
@@ -22,7 +24,7 @@ export async function save() {
   }
 
   // Save the cache to S3.
-  await saveCache(path, key, bucketName, newS3Client());
+  await saveCache(path, key, bucketName, newS3Client(), enableGzip);
 }
 
 if (require.main === module) {

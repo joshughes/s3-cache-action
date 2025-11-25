@@ -20,7 +20,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({
         Body: createReadStream("tests/test.tar.gz"),
@@ -42,7 +42,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
       .on(s3.ListObjectsV2Command, {
@@ -51,21 +51,21 @@ describe("restore", () => {
       .resolves({
         Contents: [
           {
-            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
             LastModified: new Date("2024-03-18T02:00:00Z"),
           },
           {
-            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
             LastModified: new Date("2024-03-18T01:00:00Z"),
           },
           {
-            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar.gz",
+            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar",
             LastModified: new Date("2024-03-18T03:00:00Z"),
           },
         ],
       })
       .on(s3.GetObjectCommand, {
-        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({
         Body: createReadStream("tests/test.tar.gz"),
@@ -87,7 +87,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
       .on(s3.ListObjectsV2Command, {
@@ -113,7 +113,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
       .on(s3.ListObjectsV2Command, {
@@ -136,7 +136,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({});
 
@@ -159,7 +159,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.ListObjectsV2Command, {
@@ -168,21 +168,21 @@ describe("restore", () => {
       .resolves({
         Contents: [
           {
-            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
             LastModified: new Date("2024-03-18T02:00:00Z"),
           },
           {
-            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
             LastModified: new Date("2024-03-18T01:00:00Z"),
           },
           {
-            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar.gz",
+            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar",
             LastModified: new Date("2024-03-18T03:00:00Z"),
           },
         ],
       })
       .on(s3.HeadObjectCommand, {
-        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({});
 
@@ -206,7 +206,7 @@ describe("restore", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.ListObjectsV2Command, {

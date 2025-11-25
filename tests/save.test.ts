@@ -11,11 +11,11 @@ describe("save", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 
@@ -31,11 +31,11 @@ describe("save", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 
@@ -49,11 +49,11 @@ describe("save", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar",
       })
       .resolves({});
 
@@ -76,11 +76,11 @@ describe("save", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 
@@ -94,7 +94,7 @@ describe("save", () => {
 
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 

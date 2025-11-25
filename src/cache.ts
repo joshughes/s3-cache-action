@@ -21,9 +21,10 @@ export async function saveCache(
   key: string,
   bucketName: string,
   s3Client: s3.S3Client,
+  enableGzip = false,
 ): Promise<boolean> {
   const client = new Client(bucketName, s3Client);
-  const file = fileName(paths);
+  const file = fileName(paths, enableGzip);
 
   // If the cache already exists, do not save the cache.
   if (await client.headObject(key, file)) {
@@ -38,10 +39,10 @@ export async function saveCache(
   core.debug(`expanded paths: [${expandedPaths.join(", ")}]`);
 
   // Create a tarball archive.
-  const archive = archivePath();
+  const archive = archivePath(enableGzip);
   try {
     core.debug(`Creating archive ${archive}.`);
-    await tar.create({ file: archive, gzip: true, preservePaths: true }, expandedPaths);
+    await tar.create({ file: archive, gzip: enableGzip, preservePaths: true }, expandedPaths);
 
     // Save the cache to S3.
     await client.putObject(key, file, fs.createReadStream(archive));
@@ -74,10 +75,11 @@ export async function restoreCache(
   restoreKeys: string[],
   bucketName: string,
   s3Client: s3.S3Client,
+  enableGzip = false,
 ): Promise<string | undefined> {
   const client = new Client(bucketName, s3Client);
-  const file = fileName(paths);
-  const archive = archivePath();
+  const file = fileName(paths, enableGzip);
+  const archive = archivePath(enableGzip);
 
   try {
     let restoredKey: string | undefined;
@@ -133,9 +135,10 @@ export async function lookupCache(
   restoreKeys: string[],
   bucketName: string,
   s3Client: s3.S3Client,
+  enableGzip = false,
 ): Promise<string | undefined> {
   const client = new Client(bucketName, s3Client);
-  const file = fileName(paths);
+  const file = fileName(paths, enableGzip);
 
   let foundKey: string | undefined;
   // Lookup the cache from S3 with the cache key.
@@ -160,14 +163,16 @@ export async function lookupCache(
   return foundKey;
 }
 
-function fileName(paths: string[]): string {
+function fileName(paths: string[], enableGzip: boolean): string {
   const hash = crypto.createHash("md5").update(paths.join("\n")).digest("hex");
-  return `${hash}.tar.gz`;
+  const extension = enableGzip ? ".tar.gz" : ".tar";
+  return `${hash}${extension}`;
 }
 
-function archivePath(): string {
+function archivePath(enableGzip: boolean): string {
   const tmpdir = process.env.RUNNER_TEMP || "";
-  return tmp.tmpNameSync({ tmpdir, postfix: ".tar.gz" });
+  const postfix = enableGzip ? ".tar.gz" : ".tar";
+  return tmp.tmpNameSync({ tmpdir, postfix });
 }
 
 function fileSize(file: string): number {

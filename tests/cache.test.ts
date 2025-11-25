@@ -13,11 +13,11 @@ describe("saveCache", () => {
   it("should save the cache successfully", async () => {
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 
@@ -29,11 +29,11 @@ describe("saveCache", () => {
   it("should save the cache with glob path", async () => {
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar",
       })
       .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
       .on(s3.PutObjectCommand, {
-        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar",
       })
       .resolves({});
 
@@ -45,11 +45,43 @@ describe("saveCache", () => {
   it("should not save the cache if the cache has been saved already", async () => {
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar",
       })
       .resolves({});
 
     expect(await saveCache(["tests"], "test-key", bucketName, s3Client)).toBe(false);
+  });
+
+  it("should save the cache with gzip compression when enabled", async () => {
+    s3Mock
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+      })
+      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
+      .on(s3.PutObjectCommand, {
+        Key: "test-key/b61a6d542f9036550ba9c401c80f00ef.tar.gz",
+      })
+      .resolves({});
+
+    expect(await saveCache(["tests"], "test-key", bucketName, s3Client, true)).toBe(true);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.PutObjectCommand, 1);
+  });
+
+  it("should save the cache with glob path and gzip enabled", async () => {
+    s3Mock
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+      })
+      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
+      .on(s3.PutObjectCommand, {
+        Key: "test-key/b31ec5f19793e2b7103acd7336754a1c.tar.gz",
+      })
+      .resolves({});
+
+    expect(await saveCache(["*.json"], "test-key", bucketName, s3Client, true)).toBe(true);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.PutObjectCommand, 1);
   });
 });
 
@@ -59,7 +91,7 @@ describe("restoreCache", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({
         Body: createReadStream("tests/test.tar.gz"),
@@ -78,6 +110,86 @@ describe("restoreCache", () => {
 
     s3Mock
       .on(s3.GetObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
+      .on(s3.ListObjectsV2Command, {
+        Prefix: "test-",
+      })
+      .resolves({
+        Contents: [
+          {
+            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+            LastModified: new Date("2024-03-18T02:00:00Z"),
+          },
+          {
+            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+            LastModified: new Date("2024-03-18T01:00:00Z"),
+          },
+          {
+            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar",
+            LastModified: new Date("2024-03-18T03:00:00Z"),
+          },
+        ],
+      })
+      .on(s3.GetObjectCommand, {
+        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .resolves({
+        Body: createReadStream("tests/test.tar.gz"),
+      });
+
+    expect(
+      await restoreCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
+    ).toBe("test-key1");
+    expect(fs.existsSync("tests/test.txt")).toBeTruthy();
+    expect(fs.readFileSync("tests/test.txt", "utf-8")).toBe("Hello, world!\n");
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 2);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
+  });
+
+  it("should return undefined if the cache is not found", async () => {
+    s3Mock
+      .on(s3.GetObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
+      .on(s3.ListObjectsV2Command, {
+        Prefix: "test-",
+      })
+      .resolves({ Contents: [] });
+
+    expect(
+      await restoreCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
+    ).toBeUndefined();
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 1);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
+  });
+
+  it("should restore the cache with gzip compression when enabled", async () => {
+    addCleanupFiles("tests/test.txt");
+
+    s3Mock
+      .on(s3.GetObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+      })
+      .resolves({
+        Body: createReadStream("tests/test.tar.gz"),
+      });
+
+    expect(await restoreCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, true)).toBe(
+      "test-key",
+    );
+    expect(fs.existsSync("tests/test.txt")).toBeTruthy();
+    expect(fs.readFileSync("tests/test.txt", "utf-8")).toBe("Hello, world!\n");
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 1);
+  });
+
+  it("should restore the cache with restore keys and gzip enabled", async () => {
+    addCleanupFiles("tests/test.txt");
+
+    s3Mock
+      .on(s3.GetObjectCommand, {
         Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
       })
       .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
@@ -108,29 +220,11 @@ describe("restoreCache", () => {
       });
 
     expect(
-      await restoreCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
+      await restoreCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client, true),
     ).toBe("test-key1");
     expect(fs.existsSync("tests/test.txt")).toBeTruthy();
     expect(fs.readFileSync("tests/test.txt", "utf-8")).toBe("Hello, world!\n");
     expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 2);
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
-  });
-
-  it("should return undefined if the cache is not found", async () => {
-    s3Mock
-      .on(s3.GetObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
-      })
-      .rejects(new s3.NoSuchKey({ $metadata: {}, message: "No Such Key" }))
-      .on(s3.ListObjectsV2Command, {
-        Prefix: "test-",
-      })
-      .resolves({ Contents: [] });
-
-    expect(
-      await restoreCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
-    ).toBeUndefined();
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 1);
     expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
   });
 });
@@ -139,7 +233,7 @@ describe("lookupCache", () => {
   it("should lookup the cache successfully", async () => {
     s3Mock
       .on(s3.HeadObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
       })
       .resolves({});
 
@@ -150,6 +244,74 @@ describe("lookupCache", () => {
   });
 
   it("should lookup the cache with restore keys", async () => {
+    s3Mock
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
+      .on(s3.ListObjectsV2Command, {
+        Prefix: "test-",
+      })
+      .resolves({
+        Contents: [
+          {
+            Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+            LastModified: new Date("2024-03-18T02:00:00Z"),
+          },
+          {
+            Key: "test-key2/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+            LastModified: new Date("2024-03-18T01:00:00Z"),
+          },
+          {
+            Key: "test-key3/8c69ddde1da2f30d48825fdfec8a3a4c.tar",
+            LastModified: new Date("2024-03-18T03:00:00Z"),
+          },
+        ],
+      })
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key1/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .resolves({});
+
+    expect(await lookupCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client)).toBe(
+      "test-key1",
+    );
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 2);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
+  });
+
+  it("should return undefined if the cache is not found", async () => {
+    s3Mock
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar",
+      })
+      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
+      .on(s3.ListObjectsV2Command, {
+        Prefix: "test-",
+      })
+      .resolves({ Contents: [] });
+
+    expect(
+      await lookupCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
+    ).toBeUndefined();
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
+  });
+
+  it("should lookup the cache with gzip compression when enabled", async () => {
+    s3Mock
+      .on(s3.HeadObjectCommand, {
+        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
+      })
+      .resolves({});
+
+    expect(await lookupCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, true)).toBe(
+      "test-key",
+    );
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+  });
+
+  it("should lookup the cache with restore keys and gzip enabled", async () => {
     s3Mock
       .on(s3.HeadObjectCommand, {
         Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
@@ -179,28 +341,10 @@ describe("lookupCache", () => {
       })
       .resolves({});
 
-    expect(await lookupCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client)).toBe(
-      "test-key1",
-    );
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 2);
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
-  });
-
-  it("should return undefined if the cache is not found", async () => {
-    s3Mock
-      .on(s3.HeadObjectCommand, {
-        Key: "test-key/5ae889e6d39b6deb7b3b9ba1bb15a5f6.tar.gz",
-      })
-      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }))
-      .on(s3.ListObjectsV2Command, {
-        Prefix: "test-",
-      })
-      .resolves({ Contents: [] });
-
     expect(
-      await lookupCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client),
-    ).toBeUndefined();
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+      await lookupCache(["tests/test.txt"], "test-key", ["test-"], bucketName, s3Client, true),
+    ).toBe("test-key1");
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 2);
     expect(s3Mock).toHaveReceivedCommandTimes(s3.ListObjectsV2Command, 1);
   });
 });

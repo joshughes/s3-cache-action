@@ -23,6 +23,10 @@ inputs:
   aws-session-token:
     description: AWS session token to access the bucket
     required: false
+  enable-gzip:
+    description: Enable gzip compression for cache files (defaults to false)
+    required: false
+    default: "false"
 runs:
   using: node20
   main: ../dist/save/index.js
