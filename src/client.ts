@@ -19,19 +19,51 @@ function enhanceS3Error(error: unknown): Error {
       };
       Endpoint?: string;
       Bucket?: string;
+      Region?: string;
+      [key: string]: unknown;
     };
 
-    if (awsError.name === "PermanentRedirect" && awsError.Endpoint) {
-      const enhancedMessage = `${error.message}\nCorrect endpoint: ${awsError.Endpoint}`;
+    // Log full error object for debugging
+    core.debug(`S3 Error Name: ${awsError.name}`);
+    core.debug(`S3 Error Message: ${error.message}`);
+
+    // Log all error properties
+    const errorProps: Record<string, unknown> = {};
+    for (const key in awsError) {
+      if (key !== "stack" && key !== "message" && key !== "name") {
+        errorProps[key] = awsError[key];
+      }
+    }
+    core.debug(`S3 Error Properties: ${JSON.stringify(errorProps, null, 2)}`);
+
+    // Log metadata if available
+    if (awsError.$metadata) {
+      core.debug(`S3 Error Metadata: ${JSON.stringify(awsError.$metadata, null, 2)}`);
+    }
+
+    // Handle PermanentRedirect specifically
+    if (awsError.name === "PermanentRedirect") {
+      let enhancedMessage = error.message;
+
+      if (awsError.Endpoint) {
+        enhancedMessage += `\n  → Correct endpoint: ${awsError.Endpoint}`;
+        core.error(`S3 PermanentRedirect: Bucket must use endpoint: ${awsError.Endpoint}`);
+      }
+
+      if (awsError.Bucket) {
+        enhancedMessage += `\n  → Bucket: ${awsError.Bucket}`;
+        core.error(`S3 PermanentRedirect: Bucket name: ${awsError.Bucket}`);
+      }
+
+      if (awsError.Region) {
+        enhancedMessage += `\n  → Region: ${awsError.Region}`;
+        core.error(`S3 PermanentRedirect: Correct region: ${awsError.Region}`);
+      }
+
       const enhancedError = new Error(enhancedMessage);
       enhancedError.name = error.name;
       enhancedError.stack = error.stack;
       return enhancedError;
-    }
-
-    // Log additional AWS error details if available
-    if (awsError.$metadata) {
-      core.debug(`AWS Error Details: ${JSON.stringify(awsError.$metadata)}`);
     }
   }
   return error as Error;

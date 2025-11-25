@@ -15,14 +15,16 @@ export function newS3Client(): s3.S3Client {
   const accessKeyId = getAWSInput("AWSAccessKeyId");
   const secretAccessKey = getAWSInput("AWSSecretAccessKey");
   const sessionToken = getAWSInput("AWSSessionToken");
-  
+
   // Log the region being used for debugging
   if (region) {
     core.debug(`Using AWS region: ${region}`);
   } else {
-    core.warning("No AWS region specified. The SDK will attempt to determine the region automatically.");
+    core.warning(
+      "No AWS region specified. The SDK will attempt to determine the region automatically.",
+    );
   }
-  
+
   return new s3.S3Client({
     region: region || undefined,
     credentials: { accessKeyId, secretAccessKey, sessionToken },
