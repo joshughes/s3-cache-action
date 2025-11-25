@@ -6,6 +6,37 @@ import * as fs from "fs";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 
+function enhanceS3Error(error: unknown): Error {
+  if (error instanceof Error) {
+    // Check if it's an AWS SDK error with metadata
+    const awsError = error as Error & {
+      name?: string;
+      $metadata?: {
+        httpStatusCode?: number;
+        requestId?: string;
+        extendedRequestId?: string;
+        cfId?: string;
+      };
+      Endpoint?: string;
+      Bucket?: string;
+    };
+
+    if (awsError.name === "PermanentRedirect" && awsError.Endpoint) {
+      const enhancedMessage = `${error.message}\nCorrect endpoint: ${awsError.Endpoint}`;
+      const enhancedError = new Error(enhancedMessage);
+      enhancedError.name = error.name;
+      enhancedError.stack = error.stack;
+      return enhancedError;
+    }
+
+    // Log additional AWS error details if available
+    if (awsError.$metadata) {
+      core.debug(`AWS Error Details: ${JSON.stringify(awsError.$metadata)}`);
+    }
+  }
+  return error as Error;
+}
+
 export class Client {
   constructor(
     private readonly bucketName: string,
@@ -42,7 +73,7 @@ export class Client {
       if (error instanceof s3.NoSuchKey) {
         return false;
       }
-      throw error;
+      throw enhanceS3Error(error);
     } finally {
       if (!stream.closed) {
         stream.destroy();
@@ -64,7 +95,7 @@ export class Client {
       if (error instanceof s3.NotFound) {
         return false;
       }
-      throw error;
+      throw enhanceS3Error(error);
     }
   }
 
@@ -74,18 +105,22 @@ export class Client {
       Bucket: this.bucketName,
       Prefix: prefix,
     });
-    const response = await this.client.send(command);
-    if (response.IsTruncated) {
-      core.info(
-        `Too many objects in S3 with prefix ${prefix}, ` +
-          `only ${response.KeyCount} objects will be checked.`,
+    try {
+      const response = await this.client.send(command);
+      if (response.IsTruncated) {
+        core.info(
+          `Too many objects in S3 with prefix ${prefix}, ` +
+            `only ${response.KeyCount} objects will be checked.`,
+        );
+      }
+      return (
+        response.Contents?.filter((object) => Client.matchFile(object.Key!, file))
+          .sort((x, y) => (x.LastModified!.getTime() < y.LastModified!.getTime() ? 1 : -1))
+          .map((object) => Client.getKey(object.Key!)) ?? []
       );
+    } catch (error: unknown) {
+      throw enhanceS3Error(error);
     }
-    return (
-      response.Contents?.filter((object) => Client.matchFile(object.Key!, file))
-        .sort((x, y) => (x.LastModified!.getTime() < y.LastModified!.getTime() ? 1 : -1))
-        .map((object) => Client.getKey(object.Key!)) ?? []
-    );
   }
 
   async putObject(key: string, file: string, stream: fs.ReadStream): Promise<void> {
@@ -115,6 +150,10 @@ export class Client {
       }
     });
 
-    await upload.done();
+    try {
+      await upload.done();
+    } catch (error: unknown) {
+      throw enhanceS3Error(error);
+    }
   }
 }
