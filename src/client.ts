@@ -90,7 +90,7 @@ export class Client {
 
   async putObject(key: string, file: string, stream: fs.ReadStream): Promise<void> {
     core.debug(`Putting object to S3 with key ${key}, file ${file}.`);
-    
+
     // Optimized settings for same-region AWS uploads with high bandwidth
     // - partSize: 8MB (minimum for S3 is 5MB, 8MB provides good balance)
     // - queueSize: 10 (allows 10 concurrent part uploads to saturate the link)
@@ -105,7 +105,7 @@ export class Client {
       partSize: 8 * 1024 * 1024, // 8 MB per part
       queueSize: 10, // 10 concurrent uploads
     });
-    
+
     upload.on("httpUploadProgress", ({ loaded, total }) => {
       if (loaded !== undefined && total !== undefined) {
         const percentage = ((loaded / total) * 100).toFixed(1);
@@ -114,7 +114,7 @@ export class Client {
         core.debug(`Uploaded ${loaded} bytes.`);
       }
     });
-    
+
     await upload.done();
   }
 }

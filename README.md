@@ -1,8 +1,10 @@
 # s3-cache-action
+
 This action is a minimal implementation of a cache action that caches files to Amazon S3.
 This action works similarly to [actions/cache](https://github.com/actions/cache), but uses Amazon S3 as the backend.
 
 ## Usage
+
 The action can be used in the same way as `actions/cache`, but requires input parameters for S3 bucket name and AWS credentials.
 Firstly, learn the basic usage of `actions/cache` in [GitHub Docs: Using the cache action](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#using-the-cache-action).
 The input parameters `path`, `key`, `restore-keys`, `lookup-only`, `fail-on-cache-miss`, and the output parameter `cache-hit` are compatible with `actions/cache`.
@@ -62,17 +64,19 @@ Refer to [action.yaml](https://github.com/itchyny/s3-cache-action/blob/main/acti
   For same-region AWS deployments with high bandwidth, uncompressed uploads may be faster for already-compressed artifacts.
 
 ## npm package
+
 The core implementation of this action is available as an npm package:
 [@itchyny/s3-cache-action](https://www.npmjs.com/package/@itchyny/s3-cache-action).
 
 ```sh
 npm install @itchyny/s3-cache-action
 ```
-```typescript
-import * as s3 from '@aws-sdk/client-s3';
-import * as cache from '@itchyny/s3-cache-action';
 
-const bucketName: string = 'bucket-name';
+```typescript
+import * as s3 from "@aws-sdk/client-s3";
+import * as cache from "@itchyny/s3-cache-action";
+
+const bucketName: string = "bucket-name";
 const s3Client: s3.S3Client = new s3.S3Client({
   region: process.env.AWS_REGION!,
   credentials: {
@@ -85,23 +89,31 @@ const s3Client: s3.S3Client = new s3.S3Client({
 async function main() {
   // Optional: enable gzip compression (default: false)
   const enableGzip = false;
-  
-  const saved = await cache.saveCache(
-    ['*.txt'], 'test-key', bucketName, s3Client, enableGzip,
-  );
+
+  const saved = await cache.saveCache(["*.txt"], "test-key", bucketName, s3Client, enableGzip);
   if (!saved) {
-    console.log('Cache already exists, skipped saving.');
+    console.log("Cache already exists, skipped saving.");
   }
 
   const restoredKey = await cache.restoreCache(
-    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client, enableGzip,
+    ["*.txt"],
+    "test-key",
+    ["test-"],
+    bucketName,
+    s3Client,
+    enableGzip,
   );
   if (restoredKey) {
     console.log(`Cache restored with key ${restoredKey}.`);
   }
 
   const foundKey = await cache.lookupCache(
-    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client, enableGzip,
+    ["*.txt"],
+    "test-key",
+    ["test-"],
+    bucketName,
+    s3Client,
+    enableGzip,
   );
   if (foundKey) {
     console.log(`Cache found with key ${foundKey}.`);
@@ -110,10 +122,13 @@ async function main() {
 ```
 
 ## Bug Tracker
+
 Report bug at [Issues・itchyny/s3-cache-action - GitHub](https://github.com/itchyny/s3-cache-action/issues).
 
 ## Author
+
 itchyny (<https://github.com/itchyny>)
 
 ## License
+
 This software is released under the MIT License, see LICENSE.
