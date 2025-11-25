@@ -1,5 +1,8 @@
 import * as core from "@actions/core";
 import * as s3 from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@aws-sdk/node-http-handler";
+import * as http from "http";
+import * as https from "https";
 
 import type { CompressionMethod } from "./cache";
 import { Env, Inputs } from "./constants";
@@ -49,11 +52,31 @@ export function newS3Client(): s3.S3Client {
     );
   }
 
+  // Configure HTTP agents with connection pooling to maximize bandwidth
+  // maxSockets controls how many concurrent connections can be made
+  // Setting to 100 allows high parallelism for multipart uploads/downloads
+  const maxSockets = 100;
+
+  const httpAgent = new http.Agent({
+    keepAlive: true,
+    maxSockets,
+  });
+
+  const httpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets,
+  });
+
   return new s3.S3Client({
     region: region || undefined,
     credentials: { accessKeyId, secretAccessKey, sessionToken },
     // Follow region redirects automatically if the bucket is in a different region
     followRegionRedirects: true,
+    // Use custom request handler with connection pooling for better throughput
+    requestHandler: new NodeHttpHandler({
+      httpAgent,
+      httpsAgent,
+    }),
   });
 }
 
