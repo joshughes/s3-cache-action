@@ -19,6 +19,7 @@ For examples of caching configurations in each language, see [actions/cache: Imp
     aws-region: ${{ vars.S3_CACHE_AWS_REGION }}
     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    enable-gzip: true # Optional: enable gzip compression (default: false)
 ```
 
 Attach `s3:GetObject`, `s3:PutObject` on the bucket objects, and `s3:ListBucket` on the bucket to the IAM role of the AWS credentials.
@@ -50,8 +51,15 @@ Refer to [action.yaml](https://github.com/itchyny/s3-cache-action/blob/main/acti
   You can include the same `key` in `restore-keys` for prefix matching.
 - The action does not separate caches based on the operating system, especially for Windows.
   You can include `${{ runner.os }}` in `key` and `restore-keys`.
-- The action uses only gzip compression to simplify implementation, while `actions/cache` uses Zstandard if possible.
+- The action supports optional gzip compression (disabled by default for faster tar archiving), while `actions/cache` uses Zstandard if possible.
   The action does not use any external commands, while `actions/cache` relies on `tar`, `gzip`, and `zstd` commands.
+
+## Performance Optimizations
+
+- **Multipart Uploads**: The action uses optimized multipart uploads to S3 with 8MB part size and 10 concurrent uploads.
+  This configuration is designed to saturate high-bandwidth links when running in AWS (same region as the S3 bucket).
+- **Optional Compression**: Gzip compression is optional (via `enable-gzip` parameter) to balance transfer time vs compression overhead.
+  For same-region AWS deployments with high bandwidth, uncompressed uploads may be faster for already-compressed artifacts.
 
 ## npm package
 The core implementation of this action is available as an npm package:
@@ -75,22 +83,25 @@ const s3Client: s3.S3Client = new s3.S3Client({
 });
 
 async function main() {
+  // Optional: enable gzip compression (default: false)
+  const enableGzip = false;
+  
   const saved = await cache.saveCache(
-    ['*.txt'], 'test-key', bucketName, s3Client,
+    ['*.txt'], 'test-key', bucketName, s3Client, enableGzip,
   );
   if (!saved) {
     console.log('Cache already exists, skipped saving.');
   }
 
   const restoredKey = await cache.restoreCache(
-    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client,
+    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client, enableGzip,
   );
   if (restoredKey) {
     console.log(`Cache restored with key ${restoredKey}.`);
   }
 
   const foundKey = await cache.lookupCache(
-    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client,
+    ['*.txt'], 'test-key', ['test-'], bucketName, s3Client, enableGzip,
   );
   if (foundKey) {
     console.log(`Cache found with key ${foundKey}.`);
