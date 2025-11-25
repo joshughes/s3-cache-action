@@ -99,7 +99,35 @@ export class Client {
     });
     try {
       const response = await this.client.send(command);
-      await pipeline(response.Body! as Readable, stream);
+      const contentLength = response.ContentLength;
+
+      if (contentLength) {
+        core.info(`Starting download: ${contentLength} bytes`);
+        let downloadedBytes = 0;
+        let lastLoggedPercentage = -1;
+
+        const body = response.Body! as Readable;
+
+        // Track download progress
+        body.on("data", (chunk: Buffer) => {
+          downloadedBytes += chunk.length;
+          const percentage = Math.floor((downloadedBytes / contentLength) * 100);
+
+          // Log progress every 10% to avoid spamming logs
+          if (percentage >= lastLoggedPercentage + 10 || percentage === 100) {
+            lastLoggedPercentage = percentage;
+            core.info(
+              `Download progress: ${percentage}% (${downloadedBytes}/${contentLength} bytes)`,
+            );
+          }
+        });
+
+        await pipeline(body, stream);
+      } else {
+        // If content length is unknown, just download without progress
+        await pipeline(response.Body! as Readable, stream);
+      }
+
       return true;
     } catch (error: unknown) {
       if (error instanceof s3.NoSuchKey) {
@@ -169,8 +197,8 @@ export class Client {
         Key: Client.joinKey(key, file),
         Body: stream,
       },
-      partSize: 8 * 1024 * 1024, // 8 MB per part
-      queueSize: 10, // 10 concurrent uploads
+      partSize: 32 * 1024 * 1024, // 32 MB per part
+      queueSize: 16, // 16 concurrent uploads
     });
 
     upload.on("httpUploadProgress", ({ loaded, total }) => {

@@ -235,9 +235,9 @@ describe("restoreCache", () => {
         Body: createReadStream("tests/test.tar.gz"),
       });
 
-    expect(await restoreCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "gzip")).toBe(
-      "test-key",
-    );
+    expect(
+      await restoreCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "gzip"),
+    ).toBe("test-key");
     expect(fs.existsSync("tests/test.txt")).toBeTruthy();
     expect(fs.readFileSync("tests/test.txt", "utf-8")).toBe("Hello, world!\n");
     expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 1);
@@ -303,9 +303,9 @@ describe("restoreCache", () => {
         Body: createReadStream("tests/test.tar.gz"),
       });
 
-    expect(await restoreCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "zstd")).toBe(
-      "test-key",
-    );
+    expect(
+      await restoreCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "zstd"),
+    ).toBe("test-key");
     expect(fs.existsSync("tests/test.txt")).toBeTruthy();
     expect(fs.readFileSync("tests/test.txt", "utf-8")).toBe("Hello, world!\n");
     expect(s3Mock).toHaveReceivedCommandTimes(s3.GetObjectCommand, 1);
@@ -437,9 +437,9 @@ describe("lookupCache", () => {
       })
       .resolves({});
 
-    expect(await lookupCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "gzip")).toBe(
-      "test-key",
-    );
+    expect(
+      await lookupCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "gzip"),
+    ).toBe("test-key");
     expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
   });
 
@@ -493,9 +493,9 @@ describe("lookupCache", () => {
       })
       .resolves({});
 
-    expect(await lookupCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "zstd")).toBe(
-      "test-key",
-    );
+    expect(
+      await lookupCache(["tests/test.txt"], "test-key", [], bucketName, s3Client, "zstd"),
+    ).toBe("test-key");
     expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
   });
 
