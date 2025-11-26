@@ -98,6 +98,7 @@ export class Client {
       Key: Client.joinKey(key, file),
     });
     try {
+      const startTime = Date.now();
       const response = await this.client.send(command);
       const contentLength = response.ContentLength;
 
@@ -123,6 +124,11 @@ export class Client {
         });
 
         await pipeline(body, stream);
+
+        // Calculate and display throughput
+        const durationSeconds = (Date.now() - startTime) / 1000;
+        const throughputMBps = contentLength / (1024 * 1024) / durationSeconds;
+        core.info(`Download completed: ${throughputMBps.toFixed(2)} MB/s`);
       } else {
         // If content length is unknown, just download without progress
         await pipeline(response.Body! as Readable, stream);
@@ -186,6 +192,9 @@ export class Client {
   async putObject(key: string, file: string, stream: fs.ReadStream): Promise<void> {
     core.debug(`Putting object to S3 with key ${key}, file ${file}.`);
 
+    const startTime = Date.now();
+    let totalBytes = 0;
+
     // Optimized settings for same-region AWS uploads with high bandwidth
     // - partSize: 8MB (minimum for S3 is 5MB, 8MB provides good balance)
     // - queueSize: 10 (allows 10 concurrent part uploads to saturate the link)
@@ -203,6 +212,7 @@ export class Client {
 
     upload.on("httpUploadProgress", ({ loaded, total }) => {
       if (loaded !== undefined && total !== undefined) {
+        totalBytes = total;
         const percentage = ((loaded / total) * 100).toFixed(1);
         core.info(`Upload progress: ${percentage}% (${loaded}/${total} bytes)`);
       } else if (loaded !== undefined) {
@@ -212,6 +222,13 @@ export class Client {
 
     try {
       await upload.done();
+
+      // Calculate and display throughput
+      const durationSeconds = (Date.now() - startTime) / 1000;
+      if (totalBytes > 0) {
+        const throughputMBps = totalBytes / (1024 * 1024) / durationSeconds;
+        core.info(`Upload completed: ${throughputMBps.toFixed(2)} MB/s`);
+      }
     } catch (error: unknown) {
       throw enhanceS3Error(error);
     }
