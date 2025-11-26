@@ -228,18 +228,16 @@ async function createArchive(
         { stdio: ["ignore", "pipe", "pipe"] },
       );
 
-      // zstd options for maximum effectiveness:
+      // zstd options optimized for speed:
       // -T0: Use all available CPU cores
-      // -19: Maximum compression level (1-22, 19 is very high without diminishing returns)
-      // --long=31: Enable long distance matching for better compression
+      // -1: Fast compression level (prioritizes speed over ratio)
       // -v: Verbose output for progress
       // -o: Output file
       const zstdProcess = spawn(
         "zstd",
         [
           "-T0", // Multi-threading: use all cores
-          "-19", // High compression level
-          "--long=31", // Long distance matching
+          "-1", // Fast compression (level 1)
           "-v", // Verbose
           "-o",
           archive,
