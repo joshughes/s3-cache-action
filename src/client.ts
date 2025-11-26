@@ -207,7 +207,7 @@ export class Client {
         Body: stream,
       },
       partSize: 32 * 1024 * 1024, // 32 MB per part
-      queueSize: 16, // 16 concurrent uploads
+      queueSize: 4, // 4 concurrent uploads
     });
 
     upload.on("httpUploadProgress", ({ loaded, total }) => {

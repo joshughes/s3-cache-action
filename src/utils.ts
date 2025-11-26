@@ -54,17 +54,19 @@ export function newS3Client(): s3.S3Client {
 
   // Configure HTTP agents with connection pooling to maximize bandwidth
   // maxSockets controls how many concurrent connections can be made
-  // Setting to 100 allows high parallelism for multipart uploads/downloads
-  const maxSockets = 100;
+  // Setting to 20 allows high parallelism for multipart uploads/downloads
+  const maxSockets = 20;
 
   const httpAgent = new http.Agent({
     keepAlive: true,
     maxSockets,
+    maxFreeSockets: 10
   });
 
   const httpsAgent = new https.Agent({
     keepAlive: true,
     maxSockets,
+    maxFreeSockets: 10
   });
 
   return new s3.S3Client({
