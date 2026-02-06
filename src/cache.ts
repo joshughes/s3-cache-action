@@ -45,6 +45,10 @@ export async function saveCache(
     .create(paths.join("\n"), { implicitDescendants: false })
     .then((globber) => globber.glob());
   core.debug(`expanded paths: [${expandedPaths.join(", ")}]`);
+  if (expandedPaths.length === 0) {
+    core.info("No files matched the cache paths. Skipping cache save.");
+    return false;
+  }
 
   // Create a tarball archive.
   const archive = archivePath(compressionMethod);
