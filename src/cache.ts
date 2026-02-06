@@ -15,6 +15,22 @@ const execCommand = promisify(require("child_process").exec);
 
 export type CompressionMethod = "none" | "gzip" | "zstd";
 
+class EmptyArchiveError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EmptyArchiveError";
+  }
+}
+
+function isPathPresent(path: string): boolean {
+  try {
+    fs.lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Save cache to Amazon S3.
  * @param paths The paths to cache.
@@ -38,7 +54,9 @@ export async function saveCache(
     .create(paths.join("\n"), { implicitDescendants: false })
     .then((globber) => globber.glob());
   core.debug(`expanded paths: [${expandedPaths.join(", ")}]`);
-  if (expandedPaths.length === 0) {
+  const existingPaths = expandedPaths.filter(isPathPresent);
+  core.debug(`existing paths: [${existingPaths.join(", ")}]`);
+  if (existingPaths.length === 0) {
     core.info("No files matched the cache paths. Skipping cache save.");
     return false;
   }
@@ -55,7 +73,15 @@ export async function saveCache(
   const archive = archivePath(compressionMethod);
   try {
     core.info(`Creating archive with ${compressionMethod} compression: ${archive}`);
-    await createArchive(archive, expandedPaths, compressionMethod);
+    try {
+      await createArchive(archive, existingPaths, compressionMethod);
+    } catch (error: unknown) {
+      if (error instanceof EmptyArchiveError) {
+        core.info("No files matched the cache paths. Skipping cache save.");
+        return false;
+      }
+      throw error;
+    }
 
     // Save the cache to S3.
     await client.putObject(key, file, fs.createReadStream(archive));
@@ -198,6 +224,9 @@ async function createArchive(
   paths: string[],
   compressionMethod: CompressionMethod,
 ): Promise<void> {
+  if (paths.length === 0) {
+    throw new EmptyArchiveError("No files matched the cache paths.");
+  }
   if (compressionMethod === "none") {
     // No compression - just create tar
     await tar.create({ file: archive, preservePaths: true }, paths);
@@ -228,6 +257,7 @@ async function createArchive(
         [
           "-c", // Create archive
           "-P", // Preserve absolute paths (equivalent to preservePaths: true)
+          "--", // End of options; treat remaining args as paths
           ...paths,
         ],
         { stdio: ["ignore", "pipe", "pipe"] },
@@ -253,8 +283,13 @@ async function createArchive(
       // Pipe tar output to zstd input
       tarProcess.stdout.pipe(zstdProcess.stdin);
 
+      let emptyArchive = false;
+
       tarProcess.stderr?.on("data", (data) => {
         const msg = data.toString().trim();
+        if (/cowardly refusing to create an empty archive/i.test(msg)) {
+          emptyArchive = true;
+        }
         if (msg) core.info(`tar: ${msg}`);
       });
 
@@ -283,7 +318,11 @@ async function createArchive(
 
       tarProcess.on("close", (code) => {
         if (code !== 0 && !tarError) {
-          reject(new Error(`tar failed with exit code ${code}`));
+          if (emptyArchive) {
+            reject(new EmptyArchiveError("No files matched the cache paths."));
+          } else {
+            reject(new Error(`tar failed with exit code ${code}`));
+          }
         }
       });
 
