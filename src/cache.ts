@@ -32,13 +32,6 @@ export async function saveCache(
   compressionMethod: CompressionMethod = "none",
 ): Promise<boolean> {
   const client = new Client(bucketName, s3Client);
-  const file = fileName(paths, compressionMethod);
-
-  // If the cache already exists, do not save the cache.
-  if (await client.headObject(key, file)) {
-    core.info(`Cache found in S3 with key ${key}, not saving cache.`);
-    return false;
-  }
 
   // Expand glob patterns of the paths.
   const expandedPaths = await glob
@@ -47,6 +40,14 @@ export async function saveCache(
   core.debug(`expanded paths: [${expandedPaths.join(", ")}]`);
   if (expandedPaths.length === 0) {
     core.info("No files matched the cache paths. Skipping cache save.");
+    return false;
+  }
+
+  const file = fileName(paths, compressionMethod);
+
+  // If the cache already exists, do not save the cache.
+  if (await client.headObject(key, file)) {
+    core.info(`Cache found in S3 with key ${key}, not saving cache.`);
     return false;
   }
 

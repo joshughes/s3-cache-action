@@ -57,14 +57,10 @@ describe("saveCache", () => {
   });
 
   it("should skip saving when no files match the cache paths", async () => {
-    s3Mock
-      .on(s3.HeadObjectCommand)
-      .rejects(new s3.NotFound({ $metadata: {}, message: "Not Found" }));
-
     expect(await saveCache(["__no_such_path__"], "test-key", bucketName, s3Client)).toBe(
       false,
     );
-    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 1);
+    expect(s3Mock).toHaveReceivedCommandTimes(s3.HeadObjectCommand, 0);
     expect(s3Mock).toHaveReceivedCommandTimes(s3.PutObjectCommand, 0);
   });
 
