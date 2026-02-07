@@ -69,9 +69,17 @@ export function newS3Client(): s3.S3Client {
     maxFreeSockets: 10
   });
 
+  // Only set explicit credentials if access key ID and secret are provided.
+  // Otherwise, let the AWS SDK use the default credential provider chain
+  // (environment variables, shared credentials file, ECS/EC2 instance roles, etc.).
+  const credentials =
+    accessKeyId && secretAccessKey
+      ? { accessKeyId, secretAccessKey, sessionToken: sessionToken || undefined }
+      : undefined;
+
   return new s3.S3Client({
     region: region || undefined,
-    credentials: { accessKeyId, secretAccessKey, sessionToken },
+    ...(credentials && { credentials }),
     // Follow region redirects automatically if the bucket is in a different region
     followRegionRedirects: true,
     // Use custom request handler with connection pooling for better throughput
